@@ -1,68 +1,43 @@
 <?php
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
-    // Görselin geçerli bir dosya olduğunu kontrol edin
-    if ($_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        // Geçici dosya yolunu alın
-        $tmpFilePath = $_FILES['image']['tmp_name'];
+// PNG dosyanızın adı
+$pngDosyaAdi = 'dosya.png';
 
-        // Geçici dosyayı SVG'ye dönüştürün ve renkleri değiştirin
-        $image = imagecreatefrompng($tmpFilePath);
+// PNG dosyasını GD kütüphanesi ile yükleyelim
+$im = imagecreatefrompng($pngDosyaAdi);
 
-        // Yeni bir boş SVG dosyası oluşturun
-        $svg = new DOMDocument();
-        $svg->appendChild($svg->createElement('svg'));
+// PNG dosyasının genişlik ve yüksekliğini alalım
+$genislik = imagesx($im);
+$yukseklik = imagesy($im);
 
-        // Görsel boyutlarını SVG'ye ayarlayın
-        $width = imagesx($image);
-        $height = imagesy($image);
-        $svg->documentElement->setAttribute('width', $width);
-        $svg->documentElement->setAttribute('height', $height);
+// Hedeflenen renk (beyaz için RGB: 255, 255, 255)
+$hedefR = 255;
+$hedefG = 255;
+$hedefB = 255;
 
-        // Her pikseli SVG'ye ekleyin ve renklerini değiştirin
-        for ($y = 0; $y < $height; $y++) {
-            for ($x = 0; $x < $width; $x++) {
-                $rgb = imagecolorat($image, $x, $y);
-                $r = ($rgb >> 16) & 0xFF;
-                $g = ($rgb >> 8) & 0xFF;
-                $b = $rgb & 0xFF;
+// PNG dosyasındaki renkleri hedef renge dönüştürelim
+imagefilter($im, IMG_FILTER_COLORIZE, $hedefR - 0, $hedefG - 0, $hedefB - 0);
 
-                // Renk kodunu SVG fill özelliği olarak ayarlayın
-                // $fill = sprintf('#%02x%02x%02x', $r, $g, $b);
-                $fill = '#000000'; 
+// SVG içeriği oluşturmak için string değişkeni
+$svgIcerik = '<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
+ "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+ width="' . $genislik . 'pt" height="' . $yukseklik . 'pt" viewBox="0 0 ' . $genislik . ' ' . $yukseklik . '"
+ preserveAspectRatio="xMidYMid meet">';
 
-                // Yeni bir SVG path öğesi oluşturun ve fill özelliğini ayarlayın
-                $path = $svg->createElement('path');
-                $path->setAttribute('fill', $fill);
+// PNG dosyasını SVG içeriğine dönüştürelim
+$base64 = base64_encode(file_get_contents($pngDosyaAdi));
+$svgIcerik .= '<image x="0" y="0" width="' . $genislik . '" height="' . $yukseklik . '" href="data:image/png;base64,' . $base64 . '" />';
 
-                // Pikselin koordinatlarını ayarlayın ve SVG'ye ekleyin
-                $path->setAttribute('d', "M$x $y");
-                $svg->documentElement->appendChild($path);
-            }
-        }
+// SVG içeriğini tamamlayalım
+$svgIcerik .= '</svg>';
 
-        // SVG dosyasını kaydedin
-        $svgPath = __DIR__ . '/image.svg';
-        $svg->save($svgPath);
+// SVG dosyasını oluşturalım ve kaydedelim
+$svgDosyaAdi = 'cikti.svg';
+file_put_contents($svgDosyaAdi, $svgIcerik);
 
-        // Belleği serbest bırakın
-        imagedestroy($image);
+// Bellekten PNG kaynağını temizleyelim
+imagedestroy($im);
 
-        echo 'Görsel başarıyla SVG formatına dönüştürüldü ve renkler değiştirildi.';
-    } else {
-        echo 'Görsel yüklenirken bir hata oluştu.';
-    }
-}
+echo "SVG dosyası başarılı bir şekilde oluşturuldu ve kaydedildi: $svgDosyaAdi";
 ?>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Görsel Dönüştürme</title>
-</head>
-<body>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="image">
-        <button type="submit">Gönder</button>
-    </form>
-</body>
-</html>
